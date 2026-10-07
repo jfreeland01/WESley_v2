@@ -1,0 +1,13 @@
+**/metadata.sh
+**/metadata/
+**/*CLAUDE*
+**/.nf-test
+**/.nf-test.log
+**/work
+**/.nextflow*
+**/.pytest*
+**/__pycache__/
+**/*.pyc
+**/docs
+**/.vscode/
+**/.env

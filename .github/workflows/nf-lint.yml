@@ -1,0 +1,25 @@
+name: Nextflow Linter
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Nextflow
+        uses: nf-core/setup-nextflow@v2
+        with:
+          version: '25.04.6'
+            
+      - name: Run Nextflow linter on data processing
+        working-directory: ./nextflow_automation/data_processing
+        run: |
+          nextflow lint . \
+            -exclude nf-test.config \
+            -exclude tests/data-processing-tests.config

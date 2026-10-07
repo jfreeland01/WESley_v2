@@ -1,0 +1,10 @@
+name: Mutation Calling Unit Tests
+
+# DISABLED: this workflow only ever tested Mutect2 modules (see CHANGES.md —
+# Mutect2 was removed as part of the DeepSomatic+MuSE v2 strategy change).
+# No nf-test coverage exists yet for DEEPSOMATIC or the updated MuSE/
+# consensus modules — this is a real gap, not an oversight to ignore.
+# Re-enable once that coverage exists.
+
+on:
+  workflow_dispatch: {}

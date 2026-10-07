@@ -1,0 +1,27 @@
+/*
+merge.nf
+
+This module merges all .seg files into a singular .seg file.
+*/
+
+process MERGE {
+    label 'lowCpu'
+    label 'lowMem'
+    label 'shortTime'
+    publishDir "${params.output_dir}/cnv_calling/merged_seg_files", mode: 'copy'
+
+    input:
+    path(seg_files)
+    
+    output:
+    path("merged_${params.batch_name}.seg")
+
+    script:
+    """
+    # create the merged file and add header
+    echo -e "ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean" > merged_${params.batch_name}.seg
+    
+    # append all files, skipping headers
+    tail -n +2 -q ${seg_files} >> merged_${params.batch_name}.seg
+    """
+}

@@ -1,0 +1,28 @@
+// index.nf module
+//
+// This module inputs vcf files from both variant callers, compresses them, and indexes them via bgzip/tabix
+// from the samtools package.
+//
+// samtools version: 1.10.
+
+process INDEX {
+    tag "${sample_id}"
+    publishDir "${params.output_dir}/mutation_calls/deepsomatic/raw-vcfs", mode: 'copy', pattern: "*deepsomatic*vcf*"
+    publishDir "${params.output_dir}/mutation_calls/MuSE/raw-vcfs", mode: 'copy', pattern: "*MuSE*vcf*"
+    label 'lowCpu'
+    label 'lowMem'
+    label 'shortTime'
+
+    input:
+    tuple val(sample_id), val(tumor_id), val(normal_id), path(vcf_file)
+
+    output:
+    tuple val(sample_id), val(tumor_id), val(normal_id), path("*.vcf.gz"), path("*.vcf.gz.tbi")
+
+    script:
+    """
+    # compress and index all variant caller vcf files
+    bgzip ${vcf_file}
+    tabix ${vcf_file}.gz
+    """
+}

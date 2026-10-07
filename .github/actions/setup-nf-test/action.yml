@@ -1,0 +1,44 @@
+name: "Setup nf-test"
+description: "Install Nextflow, Java, nf-test"
+author: "e10m"
+inputs:
+  nextflow_version:
+    description: "The Nextflow version to download (if necessary) and use. Example: 21.10.3"
+    required: false
+    default: "25.04.6"
+  java-version:
+    description: "The Java version to download and use. Eg: 17"
+    required: false
+    default: "11"
+  java-distribution:
+    description: "The Java distribution to install as the required dependency of Nextflow. Passed to the underlying setup-java action."
+    required: false
+    default: "temurin"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ inputs.java-version }}
+        distribution: ${{ inputs.java-distribution }}
+
+    - name: Install Nextflow
+      uses: nf-core/setup-nextflow@v2
+      with:
+        version: ${{ inputs.nextflow_version }}
+
+    - name: Install nf-test
+      uses: nick-fields/retry@v3
+      with:
+        max_attempts: 3
+        shell: bash
+        timeout_seconds: 10
+        command: |
+          wget -qO- https://get.nf-test.com | bash -s 0.9.3
+          echo "$PWD" >> $GITHUB_PATH
+        
+branding:
+  icon: "shuffle"
+  color: "green"
