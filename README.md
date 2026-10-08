@@ -14,13 +14,13 @@
   - [Create CNVKit Normal](#how-to-run-cnvkitnfcreate_norm)
   - [Consensus Calling](#how-to-run-consensus-calling)
   - [Fingerprinting](#how-to-run-fingerprinting)
-- [AWS HealthOmics](#aws-healthomics)
 - [Docker & Containerization](#docker--containerization)
 - [Requirements](#requirements)
 - [Testing & CI/CD](#testing--cicd)
 - [Outputs](#outputs)
 - [Troubleshooting](#troubleshooting)
 - [Contributors](#contributors)
+- [⚠️ AWS HealthOmics (In Progress)](#aws-healthomics-in-progress)
 
 ---
 
@@ -76,23 +76,6 @@ python make_mc_manifest.py --platform local \
 | `-m, --metadata` | Path to sequencing metadata sheet (Excel .xlsx) |
 | `-o, --output` | Output path for the manifest JSON |
 
-#### AWS HealthOmics Sequence Store
-No metadata sheet required — tumor/normal classification and pairing are derived entirely from ReadSet metadata (`sampleId`, `subjectId`). Samples whose `sampleId` matches `BLD`, `NRM`, `CD45`, or `PBMC` are classified as normals; tumors and normals sharing the same `subjectId` are paired.
-
-```bash
-python make_mc_manifest.py --platform omics \
-  --store_id <SEQUENCE_STORE_ID> \
-  --region us-west-2 \
-  -o manifest.json
-```
-
-| Flag | Description |
-|------|-------------|
-| `--platform omics` | Query a HealthOmics Sequence Store via boto3 |
-| `--store_id` | HealthOmics Sequence Store ID |
-| `--region` | AWS region of the Sequence Store |
-| `-o, --output` | Output path for the manifest JSON |
-
 ### 2. Run Mutation Calling:
 
 ### On Local Workstations
@@ -124,19 +107,6 @@ run mutation_calling.nf \
 | `--cpus`         | No       | Number of CPUs to allocate for each process (default: 30) |
 
 **Note:** The `--bam_dir` parameter is used by `make_mc_manifest.py` for manifest generation only, not by the mutation calling workflow itself.
-
-### On AWS HealthOmics
-
-See the [AWS HealthOmics](#aws-healthomics) section for full setup instructions (authentication, workflow deployment, sequence store import). Once setup is complete:
-
-```bash
-# 1. Authenticate via okta-aws-cli (see AWS HealthOmics section)
-# 2. Generate manifest from Sequence Store
-python make_mc_manifest.py --platform omics \
-  --store_id <STORE_ID> --region us-west-2 -o manifest.json
-
-# 3. Upload manifest and start run (see AWS HealthOmics section)
-```
 
 ## How To Run (cnvkit.nf:CNV_CALLING)
 
@@ -270,133 +240,6 @@ nextflow run consensus_calling.nf --with-docker -with-trace \
 | `--base_dir`     | Base directory for batch data (e.g., `wes-batch-18`) |
 | `--ref_dir`      | Directory containing reference genomes and annotation databases |
 | `--cpus`         | Number of CPUs to allocate for each process |
-
-## AWS HealthOmics
-
-WESley supports running the mutation calling workflow on [AWS HealthOmics](https://aws.amazon.com/omics/). The pipeline auto-detects the HealthOmics environment via the `AWS_WORKFLOW_RUN` environment variable and loads `mutation_calling/conf/omics.config`, which overrides:
-
-> **AWS Console:** https://uclahealth.okta.com/ — Default region: `us-west-2`
-
-### AWS CLI Authentication
-
-HealthOmics requires short-lived credentials via Okta. Run this before any AWS CLI commands — credentials expire each session.
-
-```bash
-# Install okta-aws-cli (one-time)
-brew install okta-aws-cli  # macOS
-
-# Authenticate (prompts for UCLA 2FA/Duo)
-okta-aws-cli --org-domain mylogin.it.uclahealth.org --oidc-client-id <OIDC_CLIENT_ID>
-
-# Export the printed credentials
-export AWS_ACCESS_KEY_ID=***
-export AWS_SECRET_ACCESS_KEY=***
-export AWS_SESSION_TOKEN=***
-```
-
-### Deploying the Workflow (one-time setup)
-
-Only needs to be done once, or when pipeline code changes.
-
-```bash
-# Zip the workflow
-cd nextflow_automation/
-zip -r /tmp/mutation_calling.zip mutation_calling/
-
-# Create the HealthOmics private workflow
-WORKFLOW_ID=$(aws omics create-workflow \
-  --name WESley-mutation-calling \
-  --definition-zip fileb:///tmp/mutation_calling.zip \
-  --engine NEXTFLOW \
-  --query 'id' --output text)
-
-# Verify it's active
-aws omics get-workflow --id $WORKFLOW_ID --query 'status'
-```
-
-Alternatively, create via **AWS Console → HealthOmics → Private Workflows → Create Workflow** (upload the zip, select Nextflow engine).
-
-### Sequence Store Setup
-
-BAMs must be imported into a HealthOmics Sequence Store before running. Create a Sequence Store via the console with an S3 fallback bucket, then import BAMs:
-
-```bash
-# Upload BAMs to S3 first
-aws s3 cp ./bams/ s3://your-bucket/bams/ --recursive --include "*.bam"
-
-# Create an import manifest (indexes are generated automatically — BAMs only)
-cat > import_manifest.json << 'EOF'
-[
-  {
-    "subjectId": "90",
-    "sampleId": "PT090",
-    "sourceFileType": "BAM",
-    "sourceFiles": { "source1": "s3://your-bucket/bams/PT090.BQSR.bam" },
-    "referenceArn": "arn:aws:omics:us-west-2:<ACCOUNT>:referenceStore/<REF_STORE_ID>/reference/<REF_ID>"
-  }
-]
-EOF
-```
-
-Then import via **Console → Sequence Store → Import Read Sets**, selecting `ucla-dgit-omics-service-role` as the service role.
-
-### ECR — Custom Container Images
-
-HealthOmics pulls containers from ECR. To push updated custom images:
-
-```bash
-# Build and push to Docker Hub first
-docker build -t e10m/<image>:<version> -f containerization/dockerfiles/<image>.Dockerfile .
-docker push e10m/<image>:<version>
-
-# Push to ECR (adjust image names in the script)
-bash containerization/scripts/ecr_push.sh
-
-# Grant HealthOmics pull access to the ECR repo
-aws ecr set-repository-policy --repository-name <repo> --region us-west-2 \
-  --policy-text '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"omics.amazonaws.com"},"Action":["ecr:GetDownloadUrlForLayer","ecr:BatchGetImage","ecr:BatchCheckLayerAvailability"]}]}'
-```
-
-- **Reference paths** — switched to S3 (`s3://omics-sequence-971422717605-4-8-2026/references/`)
-- **Container images** — switched to ECR (`971422717605.dkr.ecr.us-west-2.amazonaws.com/...`)
-- **Output directory** — set to `/mnt/workflow/pubdir`
-- **OncoKB secrets** — retrieved automatically from AWS Secrets Manager (`oncokb-api-key`) rather than Nextflow secrets
-
-### OncoKB Token — Local vs HealthOmics
-
-| Mode | How the token is stored | Setup |
-|------|------------------------|-------|
-| Local | Nextflow secrets (`~/.nextflow/secrets/`) | `nextflow secrets set ONCOKB_API_KEY "your_token"` |
-| HealthOmics | AWS Secrets Manager (`oncokb-api-key`) | Create the secret once; retrieved automatically at runtime |
-
-> **Note:** OncoKB API tokens expire every 6 months. A GitHub Actions workflow (`test-api.yml`) checks token validity weekly and fails loudly on expiry.
-
-> **IAM requirement:** The HealthOmics service role must have `secretsmanager:GetSecretValue` permission on the `oncokb-api-key` secret.
-
-### Submitting a Run
-
-```bash
-# 1. Authenticate (credentials expire each session)
-okta-aws-cli --org-domain mylogin.it.uclahealth.org --oidc-client-id <OIDC_CLIENT_ID>
-export AWS_ACCESS_KEY_ID=*** AWS_SECRET_ACCESS_KEY=*** AWS_SESSION_TOKEN=***
-
-# 2. Generate manifest from Sequence Store
-python make_mc_manifest.py --platform omics \
-  --store_id <STORE_ID> --region us-west-2 -o manifest.json
-
-# 3. Upload manifest to S3
-aws s3 cp manifest.json s3://<BUCKET>/manifests/
-
-# 4. Start HealthOmics run (CLI)
-aws omics start-run \
-  --workflow-id <WORKFLOW_ID> \
-  --output-uri s3://<BUCKET>/outputs/ \
-  --role-arn arn:aws:iam::<ACCOUNT>:role/ucla-dgit-omics-service-role \
-  --parameters '{"samples":"s3://.../manifest.json","capture_bed":"s3://.../capture_regions.bed"}' \
-  --region us-west-2
-```
-
-Alternatively, start via **Console → HealthOmics → Runs → Start Run**, selecting the service role and uploading a parameters JSON.
 
 ## Docker & Containerization
 
@@ -589,3 +432,162 @@ All execution logs and resource usage reports:
 ---
 
 **For questions or support, please contact:** dienethanmach@gmail.com
+
+---
+
+<a name="aws-healthomics-in-progress"></a>
+# ⚠️ AWS HealthOmics (In Progress)
+
+**This integration was never finished.** Everything below is carried over
+from the original pipeline as a reference for whoever picks this back up —
+it has not been re-verified against the DeepSomatic + MuSE v2 strategy
+change in this repo, and `mutation_calling/conf/omics.config`'s
+`DEEPSOMATIC` container entry is a known placeholder (see `CHANGES.md`).
+Treat everything in this section as a starting point, not a working setup.
+
+WESley was intended to support running the mutation calling workflow on
+[AWS HealthOmics](https://aws.amazon.com/omics/). The pipeline auto-detects
+the HealthOmics environment via the `AWS_WORKFLOW_RUN` environment variable
+and loads `mutation_calling/conf/omics.config`, which overrides reference
+paths, container images, and output locations for S3/ECR.
+
+> **AWS Console:** https://uclahealth.okta.com/ — Default region: `us-west-2`
+
+## Generating the Manifest from a Sequence Store
+
+No metadata sheet required — tumor/normal classification and pairing are derived entirely from ReadSet metadata (`sampleId`, `subjectId`). Samples whose `sampleId` matches `BLD`, `NRM`, `CD45`, or `PBMC` are classified as normals; tumors and normals sharing the same `subjectId` are paired.
+
+```bash
+python make_mc_manifest.py --platform omics \
+  --store_id <SEQUENCE_STORE_ID> \
+  --region us-west-2 \
+  -o manifest.json
+```
+
+| Flag | Description |
+|------|-------------|
+| `--platform omics` | Query a HealthOmics Sequence Store via boto3 |
+| `--store_id` | HealthOmics Sequence Store ID |
+| `--region` | AWS region of the Sequence Store |
+| `-o, --output` | Output path for the manifest JSON |
+
+## AWS CLI Authentication
+
+HealthOmics requires short-lived credentials via Okta. Run this before any AWS CLI commands — credentials expire each session.
+
+```bash
+# Install okta-aws-cli (one-time)
+brew install okta-aws-cli  # macOS
+
+# Authenticate (prompts for UCLA 2FA/Duo)
+okta-aws-cli --org-domain mylogin.it.uclahealth.org --oidc-client-id <OIDC_CLIENT_ID>
+
+# Export the printed credentials
+export AWS_ACCESS_KEY_ID=***
+export AWS_SECRET_ACCESS_KEY=***
+export AWS_SESSION_TOKEN=***
+```
+
+## Deploying the Workflow (one-time setup)
+
+Only needs to be done once, or when pipeline code changes.
+
+```bash
+# Zip the workflow
+cd nextflow_automation/
+zip -r /tmp/mutation_calling.zip mutation_calling/
+
+# Create the HealthOmics private workflow
+WORKFLOW_ID=$(aws omics create-workflow \
+  --name WESley-mutation-calling \
+  --definition-zip fileb:///tmp/mutation_calling.zip \
+  --engine NEXTFLOW \
+  --query 'id' --output text)
+
+# Verify it's active
+aws omics get-workflow --id $WORKFLOW_ID --query 'status'
+```
+
+Alternatively, create via **AWS Console → HealthOmics → Private Workflows → Create Workflow** (upload the zip, select Nextflow engine).
+
+## Sequence Store Setup
+
+BAMs must be imported into a HealthOmics Sequence Store before running. Create a Sequence Store via the console with an S3 fallback bucket, then import BAMs:
+
+```bash
+# Upload BAMs to S3 first
+aws s3 cp ./bams/ s3://your-bucket/bams/ --recursive --include "*.bam"
+
+# Create an import manifest (indexes are generated automatically — BAMs only)
+cat > import_manifest.json << 'EOF'
+[
+  {
+    "subjectId": "90",
+    "sampleId": "PT090",
+    "sourceFileType": "BAM",
+    "sourceFiles": { "source1": "s3://your-bucket/bams/PT090.BQSR.bam" },
+    "referenceArn": "arn:aws:omics:us-west-2:<ACCOUNT>:referenceStore/<REF_STORE_ID>/reference/<REF_ID>"
+  }
+]
+EOF
+```
+
+Then import via **Console → Sequence Store → Import Read Sets**, selecting `ucla-dgit-omics-service-role` as the service role.
+
+## ECR — Custom Container Images
+
+HealthOmics pulls containers from ECR. To push updated custom images:
+
+```bash
+# Build and push to Docker Hub first
+docker build -t e10m/<image>:<version> -f containerization/dockerfiles/<image>.Dockerfile .
+docker push e10m/<image>:<version>
+
+# Push to ECR (adjust image names in the script)
+bash containerization/scripts/ecr_push.sh
+
+# Grant HealthOmics pull access to the ECR repo
+aws ecr set-repository-policy --repository-name <repo> --region us-west-2 \
+  --policy-text '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"omics.amazonaws.com"},"Action":["ecr:GetDownloadUrlForLayer","ecr:BatchGetImage","ecr:BatchCheckLayerAvailability"]}]}'
+```
+
+- **Reference paths** — switched to S3 (`s3://omics-sequence-971422717605-4-8-2026/references/`)
+- **Container images** — switched to ECR (`971422717605.dkr.ecr.us-west-2.amazonaws.com/...`)
+- **Output directory** — set to `/mnt/workflow/pubdir`
+- **OncoKB secrets** — retrieved automatically from AWS Secrets Manager (`oncokb-api-key`) rather than Nextflow secrets
+
+## OncoKB Token — Local vs HealthOmics
+
+| Mode | How the token is stored | Setup |
+|------|------------------------|-------|
+| Local | Nextflow secrets (`~/.nextflow/secrets/`) | `nextflow secrets set ONCOKB_API_KEY "your_token"` |
+| HealthOmics | AWS Secrets Manager (`oncokb-api-key`) | Create the secret once; retrieved automatically at runtime |
+
+> **Note:** OncoKB API tokens expire every 6 months. A GitHub Actions workflow (`test-api.yml`) checks token validity weekly and fails loudly on expiry.
+
+> **IAM requirement:** The HealthOmics service role must have `secretsmanager:GetSecretValue` permission on the `oncokb-api-key` secret.
+
+## Submitting a Run
+
+```bash
+# 1. Authenticate (credentials expire each session)
+okta-aws-cli --org-domain mylogin.it.uclahealth.org --oidc-client-id <OIDC_CLIENT_ID>
+export AWS_ACCESS_KEY_ID=*** AWS_SECRET_ACCESS_KEY=*** AWS_SESSION_TOKEN=***
+
+# 2. Generate manifest from Sequence Store
+python make_mc_manifest.py --platform omics \
+  --store_id <STORE_ID> --region us-west-2 -o manifest.json
+
+# 3. Upload manifest to S3
+aws s3 cp manifest.json s3://<BUCKET>/manifests/
+
+# 4. Start HealthOmics run (CLI)
+aws omics start-run \
+  --workflow-id <WORKFLOW_ID> \
+  --output-uri s3://<BUCKET>/outputs/ \
+  --role-arn arn:aws:iam::<ACCOUNT>:role/ucla-dgit-omics-service-role \
+  --parameters '{"samples":"s3://.../manifest.json","capture_bed":"s3://.../capture_regions.bed"}' \
+  --region us-west-2
+```
+
+Alternatively, start via **Console → HealthOmics → Runs → Start Run**, selecting the service role and uploading a parameters JSON.
