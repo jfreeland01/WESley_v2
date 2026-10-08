@@ -12,9 +12,8 @@ process CREATE_MAF {
     label 'lowCpu'
     label 'lowMem'
     label 'medTime'
-    publishDir "${params.output_dir}/mutation_calls/mutect2/raw_maf", mode: 'copy', pattern: "*mutect2*maf*"
+    publishDir "${params.output_dir}/mutation_calls/deepsomatic/raw_maf", mode: 'copy', pattern: "*deepsomatic*maf*"
     publishDir "${params.output_dir}/mutation_calls/MuSE/raw_maf", mode: 'copy', pattern: "*MuSE*maf*"
-    publishDir "${params.output_dir}/mutation_calls/varscan2/raw_maf", mode: 'copy', pattern: "*varscan2*maf*"
 
     input:
     tuple val(sample_id), path(vcf)
@@ -30,32 +29,29 @@ process CREATE_MAF {
     # save the base name to change parameters based on variant caller
     BASE_NAME=\$(basename "${vcf}")
 
-    if [[ "\$BASE_NAME" == *"mutect2.tumorOnly"* ]]; then
-        OUTPUT_NAME="${sample_id}.mutect2.tumorOnly.vep.maf"
-    elif [[ "\$BASE_NAME" == *"mutect2.paired"* ]]; then
-        OUTPUT_NAME="${sample_id}.mutect2.paired.vep.maf"
+    if [[ "\$BASE_NAME" == *"deepsomatic"* ]]; then
+        OUTPUT_NAME="${sample_id}.deepsomatic.vep.maf"
     elif [[ "\$BASE_NAME" == *"MuSE"* ]]; then
         OUTPUT_NAME="${sample_id}.MuSE.vep.maf"
-    elif [[ "\$BASE_NAME" == *"varscan2"* ]]; then
-        OUTPUT_NAME="${sample_id}.varscan2.vep.maf"
     fi
 
-    # creating mafs for tumor only samples
-    if [[ "\$BASE_NAME" == *"mutect2.tumorOnly"* ]]; then
-        # create MAF command
+    # DeepSomatic's REHEADER output has a single column (named TUMOR, see
+    # reheader.nf) and no NORMAL column at all — use the tumor-only vcf2maf
+    # invocation, not the matched-pair one, or --vcf-normal-id "NORMAL"
+    # would point at a column that doesn't exist.
+    if [[ "\$BASE_NAME" == *"deepsomatic"* ]]; then
         perl /app/vcf2maf.pl \
             --inhibit-vep \
             --input-vcf ${vcf} \
             --output-maf "\$OUTPUT_NAME" \
             --tumor-id ${sample_id} \
-            --vcf-tumor-id ${sample_id} \
+            --vcf-tumor-id "TUMOR" \
             --ref-fasta ${ref_fasta} \
             --ncbi-build hg38 \
             --maf-center NathansonLab
 
-    # create maf for matched samples
+    # MuSE: matched tumor/normal pair, native NORMAL/TUMOR columns
     else
-        # create MAF command
         perl /app/vcf2maf.pl \
             --inhibit-vep \
             --input-vcf ${vcf} \

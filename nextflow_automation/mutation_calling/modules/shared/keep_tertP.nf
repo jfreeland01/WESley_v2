@@ -9,9 +9,8 @@ process KEEP_TERTP {
     label 'lowCpu'
     label 'lowMem'
     label 'shortTime'
-    publishDir "${params.output_dir}/mutation_calls/mutect2/tertp", mode: 'copy', pattern: "*mutect2*maf*"
+    publishDir "${params.output_dir}/mutation_calls/deepsomatic/tertp", mode: 'copy', pattern: "*deepsomatic*maf*"
     publishDir "${params.output_dir}/mutation_calls/MuSE/tertp", mode: 'copy', pattern: "*MuSE*maf*"
-    publishDir "${params.output_dir}/mutation_calls/varscan2/tertp", mode: 'copy', pattern: "*varscan2*maf*"
 
     input:
     tuple val(sample_id), path(maf)
@@ -26,14 +25,10 @@ process KEEP_TERTP {
     // define output names
     def output_file = null
 
-    if (basename.contains("mutect2.paired")) {
-        output_file = "${sample_id}.mutect2.paired.vep.tertp.maf"
-    } else if (basename.contains("mutect2.tumorOnly")) {
-        output_file = "${sample_id}.mutect2.tumorOnly.vep.tertp.maf"
+    if (basename.contains("deepsomatic")) {
+        output_file = "${sample_id}.deepsomatic.vep.tertp.maf"
     } else if (basename.contains("MuSE")) {
         output_file = "${sample_id}.MuSE.vep.tertp.maf"
-    } else if (basename.contains("varscan2")) {
-        output_file = "${sample_id}.varscan2.vep.tertp.maf"
     }
 
     """

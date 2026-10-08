@@ -21,8 +21,8 @@ aws ecr get-login-password --region "${REGION}" | \
 IMAGES=(
     "broadinstitute/gatk:4.2.0.0|gatk:4.2.0.0"
     "quay.io/biocontainers/samtools:1.10--h9402c20_1|samtools:1.10"
-    "quay.io/biocontainers/muse:1.0.rc--1|muse:1.0.rc"
-    "e10m/varscan2:latest|varscan2:latest"
+    "quay.io/biocontainers/muse:2.1.2--h3b3e331_3|muse:2.1.2"
+    "google/deepsomatic:1.10.0|deepsomatic:1.10.0"
     "ensemblorg/ensembl-vep:release_115.0|vep:115.0"
     "e10m/vcf2maf:1.6.19|vcf2maf:1.6.19"
     "e10m/oncokb-awscli:3.0.0|oncokb:3.0.0"

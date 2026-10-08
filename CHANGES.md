@@ -69,6 +69,42 @@ this explicitly to anyone reviewing before merging.
   machinery were removed — those existed only to support Mutect2's
   `FilterMutectCalls` contamination model.
 
+### A second round of fixes, found by actually checking everything
+
+After the first pass, the user directly asked "were the diagrams and
+everything else updated?" — the honest answer was no, which surfaced a real
+functional bug beyond just stale docs:
+
+- **Real bug, now fixed:** `mutation_calling`'s *per-caller* downstream chain
+  (`shared/reheader.nf`, `create_maf.nf`, `keep_tertP.nf`,
+  `keep_nonsynonymous.nf`, `rename_hg38.nf`, `oncokb.nf` — distinct from
+  `consensus_calling`'s own copies of similarly-named modules) still
+  branched on hardcoded `mutect2`/`varscan2` basenames with no DeepSomatic
+  case at all. Worse, `create_maf.nf`'s `vcf2maf.pl` call would have run
+  DeepSomatic's single-column output through the matched-pair invocation
+  (`--vcf-normal-id "NORMAL"`), pointing at a sample column that doesn't
+  exist. Fixed: `shared/reheader.nf` now renames DeepSomatic's one real-named
+  column to `TUMOR` (matching `consensus_calling/reheader.nf`'s approach),
+  and `create_maf.nf` uses the tumor-only-style `vcf2maf.pl` invocation
+  (`--tumor-id`, `--vcf-tumor-id "TUMOR"`, no normal flags) for DeepSomatic.
+  Verified directly against real benchmark output: `bcftools reheader`
+  correctly renames the column, and `vcf2maf.pl` runs clean (exit 0,
+  produces exactly 1,218 MAF rows matching the 1,218 PASS-filtered input
+  variants; the "No genotype column for NORMAL" warning it prints is
+  expected, not an error, given the design here).
+- **Docs/config updated too:** `README.md` (TOC, run examples, container
+  tables, software dependency tables, CI description, diagram captions),
+  `containerization/compose.yaml` and `ecr_push.sh` (MuSE version, VarScan2
+  removed, DeepSomatic added), removed the now-orphaned
+  `containerization/dockerfiles/VarScan2.Dockerfile`, and
+  `nextflow_automation/tests/shared-test.config`'s leftover Mutect2
+  container selector.
+- **Not fixed — flagged instead, since I can't regenerate images:**
+  `diagrams/mutation-calling.png` and `diagrams/consensus-calling.png` still
+  depict the old 3-caller architecture. Added explicit warning callouts in
+  `README.md` pointing at this file rather than leaving them silently
+  wrong. Redrawing them is a real remaining task for whoever picks this up.
+
 ### Known caveat — not yet re-validated end-to-end
 
 I smoke-tested the new `consensus_calling.nf` logic against real

@@ -2,19 +2,19 @@
 reheader.nf module
 
 This module renames each caller's own VCF for consistent per-caller output
-naming ahead of CREATE_MAF. With only DeepSomatic (single tumor-sample
-column) and MuSE (native NORMAL/TUMOR two-column output) remaining as
-callers, neither needs column reordering here — that TCGB-ID-based
-reordering was only ever needed for Mutect2's raw output, which this
-pipeline no longer runs. See CHANGES.md.
+naming ahead of CREATE_MAF. DeepSomatic reports a single sample column
+named with the real tumor sample ID (no NORMAL column — see
+deepsomatic.nf's docstring); this module renames that one column to the
+literal name TUMOR so downstream modules (CREATE_MAF in particular, which
+reads `--vcf-tumor-id`) have one consistent column name to expect across
+callers rather than branching on dynamic real sample names. MuSE already
+reports a column literally named TUMOR, so it just gets copied through.
 
 Note: this is the per-individual-caller reheader, used for each caller's
 own MAF output. It is independent of consensus_calling's reheader.nf,
-which harmonizes DeepSomatic's and MuSE's column conventions against each
-other ahead of consensus merging — a different problem with a different
-fix, see that module's docstring.
+which does the analogous harmonization ahead of consensus merging instead.
 
-bcftools version: 1.10.
+bcftools version: 1.10.2.
 */
 
 process REHEADER {
@@ -34,7 +34,11 @@ process REHEADER {
     BASE_NAME=\$(basename "${vcf}")
 
     if [[ "\$BASE_NAME" == *"deepsomatic"* ]]; then
-        cp "${vcf}" "${sample_id}.deepsomatic.reheader.vcf"
+        current_name=\$(grep "^#CHROM" "${vcf}" | awk '{print \$10}')
+        echo "\$current_name TUMOR" > deepsomatic-reheader.txt
+        bcftools reheader "${vcf}" \\
+            -s deepsomatic-reheader.txt \\
+            -o "${sample_id}.deepsomatic.reheader.vcf"
     elif [[ "\$BASE_NAME" == *"MuSE"* ]]; then
         cp "${vcf}" "${sample_id}.MuSE.reheader.vcf"
     fi

@@ -19,9 +19,8 @@ System.getenv('AWS_WORKFLOW_RUN').
 
 process ONCOKB {
     tag "${sample_id}"
-    publishDir "${params.output_dir}/mutation_calls/mutect2/oncokb_annotation", mode: 'copy', pattern: "*mutect2*vep.nonsynonymous*"
+    publishDir "${params.output_dir}/mutation_calls/deepsomatic/oncokb_annotation", mode: 'copy', pattern: "*deepsomatic*vep.nonsynonymous*"
     publishDir "${params.output_dir}/mutation_calls/MuSE/oncokb_annotation", mode: 'copy', pattern: "*MuSE*vep.nonsynonymous*"
-    publishDir "${params.output_dir}/mutation_calls/varscan2/oncokb_annotation", mode: 'copy', pattern: "*varscan2*vep.nonsynonymous*"
     label 'lowCpu'
     label 'lowMem'
     label 'medTime'
@@ -38,14 +37,10 @@ process ONCOKB {
     # save the base name to change parameters based on variant caller
     BASE_NAME=\$(basename "${nonsyno_maf}")
 
-    if [[ "\$BASE_NAME" == *"mutect2.tumorOnly"* ]]; then
-        OUTPUT_NAME="${sample_id}.mutect2.tumorOnly.vep.nonsynonymous.oncokb.maf"
-    elif [[ "\$BASE_NAME" == *"mutect2.paired"* ]]; then
-        OUTPUT_NAME="${sample_id}.mutect2.paired.vep.nonsynonymous.oncokb.maf"
+    if [[ "\$BASE_NAME" == *"deepsomatic"* ]]; then
+        OUTPUT_NAME="${sample_id}.deepsomatic.vep.nonsynonymous.oncokb.maf"
     elif [[ "\$BASE_NAME" == *"MuSE"* ]]; then
         OUTPUT_NAME="${sample_id}.MuSE.vep.nonsynonymous.oncokb.maf"
-    elif [[ "\$BASE_NAME" == *"varscan2"* ]]; then
-        OUTPUT_NAME="${sample_id}.varscan2.vep.nonsynonymous.oncokb.maf"
     fi
 
     # annotate via oncokb
@@ -61,9 +56,8 @@ process ONCOKB {
 
 process ONCOKB_OMICS {
     tag "${sample_id}"
-    publishDir "${params.output_dir}/mutation_calls/mutect2/oncokb_annotation", mode: 'copy', pattern: "*mutect2*vep.nonsynonymous*"
+    publishDir "${params.output_dir}/mutation_calls/deepsomatic/oncokb_annotation", mode: 'copy', pattern: "*deepsomatic*vep.nonsynonymous*"
     publishDir "${params.output_dir}/mutation_calls/MuSE/oncokb_annotation", mode: 'copy', pattern: "*MuSE*vep.nonsynonymous*"
-    publishDir "${params.output_dir}/mutation_calls/varscan2/oncokb_annotation", mode: 'copy', pattern: "*varscan2*vep.nonsynonymous*"
     label 'lowCpu'
     label 'lowMem'
     label 'medTime'
@@ -86,14 +80,10 @@ process ONCOKB_OMICS {
     # save the base name to change parameters based on variant caller
     BASE_NAME=\$(basename "${nonsyno_maf}")
 
-    if [[ "\$BASE_NAME" == *"mutect2.tumorOnly"* ]]; then
-        OUTPUT_NAME="${sample_id}.mutect2.tumorOnly.vep.nonsynonymous.oncokb.maf"
-    elif [[ "\$BASE_NAME" == *"mutect2.paired"* ]]; then
-        OUTPUT_NAME="${sample_id}.mutect2.paired.vep.nonsynonymous.oncokb.maf"
+    if [[ "\$BASE_NAME" == *"deepsomatic"* ]]; then
+        OUTPUT_NAME="${sample_id}.deepsomatic.vep.nonsynonymous.oncokb.maf"
     elif [[ "\$BASE_NAME" == *"MuSE"* ]]; then
         OUTPUT_NAME="${sample_id}.MuSE.vep.nonsynonymous.oncokb.maf"
-    elif [[ "\$BASE_NAME" == *"varscan2"* ]]; then
-        OUTPUT_NAME="${sample_id}.varscan2.vep.nonsynonymous.oncokb.maf"
     fi
 
     # annotate via oncokb

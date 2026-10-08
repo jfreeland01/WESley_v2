@@ -1,4 +1,4 @@
-/* 
+/*
 keep_nonsynonymous.nf module
 
 This module filters synonymous mutations and keeps nonsynonymous mutation calls only
@@ -25,14 +25,10 @@ process KEEP_NONSYNONYMOUS {
     # save the base name to change parameters based on variant caller
     BASE_NAME=\$(basename "${maf_file}")
 
-    if [[ "\$BASE_NAME" == *"mutect2.tumorOnly"* ]]; then
-        OUTPUT_NAME="${sample_id}.mutect2.tumorOnly.vep.nonsynonymous.maf"
-    elif [[ "\$BASE_NAME" == *"mutect2.paired"* ]]; then
-        OUTPUT_NAME="${sample_id}.mutect2.paired.vep.nonsynonymous.maf"
+    if [[ "\$BASE_NAME" == *"deepsomatic"* ]]; then
+        OUTPUT_NAME="${sample_id}.deepsomatic.vep.nonsynonymous.maf"
     elif [[ "\$BASE_NAME" == *"MuSE"* ]]; then
         OUTPUT_NAME="${sample_id}.MuSE.vep.nonsynonymous.maf"
-    elif [[ "\$BASE_NAME" == *"varscan2"* ]]; then
-        OUTPUT_NAME="${sample_id}.varscan2.vep.nonsynonymous.maf"
     fi
 
     # filter synonymous mutations

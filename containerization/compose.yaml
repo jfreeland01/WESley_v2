@@ -45,15 +45,15 @@ services:
     command: "true"
 
   muse:
-    image: quay.io/biocontainers/muse:1.0.rc--1
+    image: quay.io/biocontainers/muse:2.1.2--h3b3e331_3
     command: "true"
 
-  varscan2:
-    image: e10m/varscan2:latest
+  deepsomatic:
+    image: google/deepsomatic:1.10.0
     command: "true"
 
   vep:
-    image: e10m/vep:106.1
+    image: e10m/vep:115
     command: "true"
 
   bcftools:
