@@ -7,7 +7,6 @@
 
 ## Table of Contents
 
-- [Workflow Diagrams](#workflow-diagrams)
 - [How To Run](#how-to-run-data-processing)
   - [Data Processing](#how-to-run-data-processing)
   - [Mutation Calling](#how-to-run-mutation-calling)
@@ -24,29 +23,6 @@
 - [Contributors](#contributors)
 
 ---
-
-## Workflow Diagrams
-### Data Processing
-![Data Processing](./diagrams/data-processing.png)
-
-### Mutation Calling
-> ⚠️ **Stale diagram** — still depicts the old Mutect2/MuSE/VarScan2 pipeline.
-> Current callers are DeepSomatic + MuSE v2; see [CHANGES.md](./CHANGES.md).
-> Not yet redrawn — these are images, not something a code edit regenerates.
-
-![Mutation Calling](./diagrams/mutation-calling.png)
-
-### Copy Number Calling
-![Copy Number Calling](./diagrams/cnvkit.png)
-
-### Consensus Calling
-> ⚠️ **Stale diagram** — still depicts the old 3-caller 2-of-3 consensus.
-> Current rule is a DeepSomatic ∪ MuSE v2 union; see [CHANGES.md](./CHANGES.md).
-
-![Consensus Calling](./diagrams/consensus-calling.png)
-
-### Fingerprinting
-![Fingerprint](./diagrams/fingerprint.png)
 
 ## How To Run (Data Processing)
 
